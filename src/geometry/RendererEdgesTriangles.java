@@ -6,10 +6,17 @@ import java.util.stream.IntStream;
 
 import annotations.NotNull;
 import rasterdata.RasterImage;
-import sun.security.pkcs11.wrapper.Functions;
+import rasterization.LineRasterizer;
 import transforms.Point3D;
+import transforms.Vec3D;
 
 public class RendererEdgesTriangles<VertexType, PixelType> implements Renderer<VertexType, Connectivity, PixelType> {
+
+	private final @NotNull LineRasterizer<PixelType> liner;
+
+	public RendererEdgesTriangles(LineRasterizer<PixelType> lineRasterizer) {
+		this.liner = lineRasterizer;
+	}
 
 	@Override
 	public @NotNull RasterImage<PixelType> render(
@@ -49,8 +56,7 @@ public class RendererEdgesTriangles<VertexType, PixelType> implements Renderer<V
 			final int startIndex, final int primitiveCount) {
 		return IntStream.iterate(startIndex, i -> i + 2)
 				.limit(primitiveCount)
-				.mapToObj(x -> x)	// z IntStream delame Stream<Integer>, 
-									// abychom meli nasledujici funkci reduce
+				.boxed()	// z IntStream delame Stream<Integer>,// abychom meli nasledujici funkci reduce... TODO: Je tam na to udělátko ;)
 				.reduce(img, 
 					(final @NotNull RasterImage<PixelType> image, final Integer i) -> 
 						renderEdge(
@@ -83,6 +89,11 @@ public class RendererEdgesTriangles<VertexType, PixelType> implements Renderer<V
 			final @NotNull RasterImage<PixelType> img) {
 		// zde doplnit orezani w, dehomogenizaci, viewport transformaci a vykresleni Linerem
 
-		return img;
+		// 4D - 3D -> dehomogenizace
+		final Vec3D a = p1.dehomog().orElse(new Vec3D()); //Asi by to chtelo nejakou rozumnou vychozi hodnotu, nebo vyhodit vyjimku -> invalid argument?
+		final Vec3D b = p2.dehomog().orElse(new Vec3D());
+
+
+		return liner.drawLine(img,a.getX(),a.getY(),b.getX(),b.getY(),pixelValue);
 	} 
 }
