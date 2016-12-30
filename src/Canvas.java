@@ -1,26 +1,28 @@
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 
 import annotations.NotNull;
 import annotations.Nullable;
+import geometry.*;
+import geometry.Renderer;
 import rasterdata.Presentable;
 import rasterdata.RasterImage;
 import rasterdata.RasterImageBuf;
 import rasterization.LineRasterizer;
-import rasterization.LineRasterizerTrivial;
+import rasterization.LineRasterizerDDA;
 import rasterization.SeedFill;
 import rasterization.SeedFill4In;
+import transforms.Camera;
+import transforms.Point3D;
 
 /**
  * Minimal GUI for drawing pixels
@@ -35,29 +37,27 @@ public class Canvas {
 	private @NotNull RasterImage<Integer> img;
 	private final @NotNull Presentable<Graphics> imagePresenter;
 	private final @NotNull LineRasterizer<Integer> liner;
+	private final @NotNull Cube cube;
+	private final @NotNull Renderer<Point3D, Connectivity, Integer> renderer;
+	private final @NotNull Camera camera;
+	private final @NotNull List<Axis> axisList;
 
-	public Canvas(final int width, final int height) {
+	private Canvas(final int width, final int height) {
+		axisList = new ArrayList<>();
+		cube = new Cube();
+		liner = new LineRasterizerDDA<>();
+		renderer = new RendererEdgesTriangles<>(liner);
+		camera = new Camera();
+
 		frame = new JFrame();
 		frame.setTitle("UHK FIM PGRF : Canvas");
 		frame.setResizable(true);
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		
 		final @NotNull RasterImageBuf<Integer> tempImage =
-			new RasterImageBuf<>(width, height, BufferedImage.TYPE_INT_RGB,
-				//PixelType toPixelType(Integer), Function<Integer, PixelType>, PixelType = Integer
-					pixel -> pixel,
-				//Integer fromPixelType(PixelType), Function<PixelType, Integer>, PixelType = Integer
-					new Function<Integer/*PixelType*/, Integer>() {
-						@Override
-						public @NotNull Integer apply(final @NotNull Integer/*PixelType*/ pixel) {
-							return pixel;
-						}
-					}
-			);
+			new RasterImageBuf<>(width, height, BufferedImage.TYPE_INT_RGB,pixel -> pixel, pixel -> pixel);
 		img = tempImage;
 		imagePresenter = tempImage;
-		
-		liner = new LineRasterizerTrivial<>();
 
 		panel = new JPanel();
 		panel.setPreferredSize(new Dimension(width, height));
@@ -77,10 +77,7 @@ public class Canvas {
 							new SeedFill4In<>();
 					final @NotNull Optional<Integer> pixel = 
 							img.getPixel(e.getX(), e.getY());
-					pixel.ifPresent(pix -> {
-						img = seedFiller.fill(img, e.getX(), e.getY(), 
-								pix, 0xffff00);
-					});
+					pixel.ifPresent(pix -> img = seedFiller.fill(img, e.getX(), e.getY(), pix, 0xffff00));
 					present();
 				}
 			}
@@ -104,7 +101,7 @@ public class Canvas {
 		frame.setVisible(true);
 	}
 
-	public void clear(final int color) {
+	private void clear(final int color) {
 		/*
 		final Graphics gr = img.getGraphics();
 		gr.setColor(new Color(color));
@@ -112,19 +109,21 @@ public class Canvas {
 		*/
 	}
 
-	public void present() {
+	private void present() {
 		final @Nullable Graphics graphics = panel.getGraphics(); 
 		if (graphics != null)
 			imagePresenter.present(graphics);
 	}
 
-	public void draw() {
+	private void draw() {
 		clear(0x2f2f2f);
 		img = img.withPixel(10, 10, 0xffff00);
 		img = liner.drawLine(img, -0.9, 0.9, 0.9, 0.8, 0xff00ff);
+		img = renderer.render(cube,0xff00ff,img, point -> point);
+
 	}
 
-	public void start() {
+	private void start() {
 		draw();
 		present();
 	}
@@ -134,9 +133,7 @@ public class Canvas {
 		SwingUtilities.invokeLater(() -> {
 			SwingUtilities.invokeLater(() -> {
 				SwingUtilities.invokeLater(() -> {
-					SwingUtilities.invokeLater(() -> {
-						canvas.start();
-					});
+					SwingUtilities.invokeLater(canvas::start);
 				});
 			});
 		});
