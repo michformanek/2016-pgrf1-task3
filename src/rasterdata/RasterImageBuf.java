@@ -1,11 +1,12 @@
 package rasterdata;
 
-import java.awt.Graphics;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.Optional;
 import java.util.function.Function;
 
 import annotations.NotNull;
+import annotations.Nullable;
 
 public class RasterImageBuf<PixelType> implements RasterImage<PixelType>, 
 		Presentable<Graphics> {
@@ -53,4 +54,14 @@ public class RasterImageBuf<PixelType> implements RasterImage<PixelType>,
 		return device;
 	}
 
+	@Override
+	public RasterImage<PixelType> fill(@NotNull PixelType pixel) {
+		final @Nullable Graphics graphics = img.getGraphics();
+		if (graphics != null) {
+			graphics.setColor(new Color(fromPixelType.apply(pixel)));
+			graphics.fillRect(0, 0, img.getWidth(), img.getHeight());
+		}
+		return this;
+	}
 }
+

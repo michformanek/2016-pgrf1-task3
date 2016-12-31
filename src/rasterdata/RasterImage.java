@@ -55,4 +55,6 @@ public interface RasterImage<PixelType> {
 	 * @return number of columns
 	 */
 	int getWidth();
+
+    RasterImage<PixelType> fill(PixelType i);
 }
